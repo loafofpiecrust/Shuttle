@@ -88,6 +88,7 @@ android {
         }
 
         release {
+            ext.enableCrashlytics = false
 
             minifyEnabled true
             shrinkResources true
@@ -165,7 +166,7 @@ android {
 
             //Enable multiDex for debug builds, since they don't use proguard
             multiDexEnabled true
-            minSdkVersion 21
+            minSdkVersion 24
         }
 
         devPre21 {
@@ -273,6 +274,8 @@ dependencies {
     compile(libs.materialDialogs) {
         transitive = true;
     }
+    compile group: 'com.google.guava', name: 'guava', version: '20.0'
+    compile group: 'org.pircbotx', name: 'pircbotx', version: '2.1'
 
     // //////////////////////////////////////////////////////////////////////////
     // Multidex (Only used in non-proguard pre-21 builds)

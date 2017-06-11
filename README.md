@@ -7,7 +7,7 @@
 
 Shuttle is an open source, local music player for Android.
 
-Shuttle comes in two flavours: 
+Shuttle comes in two flavours:
 
 - [Shuttle (free)](https://play.google.com/store/apps/details?id=another.music.player)
 - [Shuttle+](https://play.google.com/store/apps/details?id=com.simplecity.amp_pro)
@@ -35,6 +35,27 @@ The free version includes an option to upgrade via an IAP, which unlocks the fea
 - Additional theme options
 - Additional artwork editing options
 
+
+##### Todo List for sync play:
+
+- Make syncing an opt-in mode that requires an IRC channel specified.
+- Control the tracks via an IRC channel.
+    - The app recognizes very specific command messages in the IRC room. Play, pause, queue changes.
+    - When a file is sent across, download it and use it as the next song.
+/// A mobile app that allows 2 (maybe more) people to listen to music simultaneously.
+/// Tracks are synced across the two devices, timewise.
+/// When one user pauses, it pauses for both and must be unpaused by the og.
+/// This is gonna have to be a music player itself. So, fork Shuttle.
+/// To start with, we need to connect the users p2p.
+/// Then, as a tester, when one plays a new song, it pauses theirs, sends the file to the other user, whose player then transmits successful receival and starts playing. Then, the first user gets the success message and starts playing. They're very nearly synced at this point. But, there's a delay at the beginning.
+/// Next, have it start stream downloading the file, sequentially from the 1st user to the 2nd user. Wait for a small buffer of it to download, then start playing from the download destination on the 2nd user, sending a successful reception message to the first user. Now, there's much less delay when a song not in common is played, but the song is still downloaded to the device so when it's played later the file can be reused.
+/// Next thing: before this transfer process, the first user sends the song info to the second user, where it's checked for in their library. If they have the song already, play that and send success back. If they don't, do the transfer process.
+/// Next: if one user pauses, then send a pause message to the other user. Do the same for a play message. Don't use toggle, because then if one user hits play, then the other hits play, there will be conflict. Even if users are to be trusted, toggle would be wobbly.
+/// If this is a background service controlling any music player, then simply when a user plays a song, they have control of the queue. When the service plays a song, the queue on that device will be empty, so music stops at the end until the other user sends over the next song. This is janky, but prevents embedding it into the player.
+/// Benefits of building into player:
+/// - Collective queue between both users.
+/// - Smoother syncing, and can hugely prevent getting out of sync.
+/// - Same interface for playing music and connecting to another user.
 
 #### Contributing:
 

@@ -69,6 +69,7 @@ import com.google.android.libraries.cast.companionlibrary.cast.exceptions.NoConn
 import com.google.android.libraries.cast.companionlibrary.cast.exceptions.TransientNetworkDisconnectionException;
 import com.simplecity.amp_library.BuildConfig;
 import com.simplecity.amp_library.R;
+import com.simplecity.amp_library.ShuttleApplication;
 import com.simplecity.amp_library.glide.utils.GlideUtils;
 import com.simplecity.amp_library.http.HttpServer;
 import com.simplecity.amp_library.model.Album;
@@ -85,14 +86,19 @@ import com.simplecity.amp_library.utils.PlaylistUtils;
 import com.simplecity.amp_library.utils.SettingsManager;
 import com.simplecity.amp_library.utils.ShuttleUtils;
 
+import org.pircbotx.Channel;
+import org.pircbotx.PircBotX;
+
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 
+import io.fabric.sdk.android.services.concurrency.AsyncTask;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action0;
@@ -206,6 +212,7 @@ public class MusicService extends Service {
         int GO_TO_NEXT = 10;
         int GO_TO_PREV = 11;
         int SHUFFLE_ALL = 12;
+        int SYNC_START = 13;
     }
 
     private static final Random mShuffler = new Random();
@@ -322,6 +329,92 @@ public class MusicService extends Service {
 
     private boolean queueReloading;
     private boolean playOnQueueLoad;
+
+    // Sync mode parameters
+    PircBotX ircBot;
+    private boolean syncedQueue = false; // TODO: Default false, make menu for sync mode.
+
+    public void toggleSyncBroadcast(boolean sync) {
+        this.syncedQueue = sync;
+    }
+
+    public void toggleSyncBroadcast() {
+        syncedQueue = !syncedQueue;
+    }
+
+    public String getSyncUser() {
+        return SettingsManager.getInstance().getSyncUser();
+    }
+
+    public String getSyncChannel() {
+        return SettingsManager.getInstance().getSyncChannel();
+    }
+
+    private class SyncMessageTask extends AsyncTask<Object, Void, Void> {
+        @Override
+        protected Void doInBackground(Object... params) {
+            PircBotX bot = (PircBotX)params[0];
+            String msg = (String)params[1];
+            System.out.println("sfs sending: " + msg);
+            for (Channel c : bot.getUserBot().getChannels()) {
+                c.send().message("?s`" + msg);
+            }
+            return null;
+        }
+    }
+
+    private void sendSyncMessage(Syncer.Command cmd, String[] args) {
+        if (ircBot == null || !syncedQueue) {
+            return;
+        }
+
+        StringBuilder msg = new StringBuilder(cmd.toString());
+        for (String arg : args) {
+            msg.append('`');
+            msg.append(arg);
+        }
+
+        new SyncMessageTask().execute(ircBot, msg.toString());
+    }
+
+    private void sendSyncMessage(Syncer.Command cmd, String msg) {
+        sendSyncMessageText(cmd.toString() + msg);
+    }
+
+    private void sendSyncMessage(Syncer.Command cmd) {
+        sendSyncMessageText(cmd.toString());
+    }
+
+    private void sendSyncMessageText(String msg) {
+        if (ircBot == null || !syncedQueue) {
+            return;
+        }
+
+        new SyncMessageTask().execute(ircBot, msg);
+    }
+
+    public void enterSyncMode() {
+        if (!ShuttleUtils.isOnline(false)) {
+            // Don't sync if we're offline.
+            System.out.println("Can't sync while offline.");
+            return;
+        }
+
+        if (getSyncUser() != null) {
+            new IRCTask().execute(this);
+            syncedQueue = true;
+        }
+    }
+
+    public void exitSyncMode() {
+        if (ircBot != null) {
+            if (ircBot.isConnected()) {
+                ircBot.send().quitServer();
+            }
+            ircBot.close();
+        }
+        syncedQueue = false;
+    }
 
     void updatePlaybackLocation(int location) {
 
@@ -612,6 +705,9 @@ public class MusicService extends Service {
         player = new MultiPlayer(this);
         player.setHandler(playerHandler);
 
+        // TODO: GUI for entering and exiting sync mode.
+//        this.enterSyncMode();
+
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(ServiceCommand.SERVICE_COMMAND);
         intentFilter.addAction(ServiceCommand.TOGGLE_PAUSE_ACTION);
@@ -821,6 +917,7 @@ public class MusicService extends Service {
 
     @Override
     public void onDestroy() {
+        exitSyncMode();
 
         if (playbackState == PLAYING) {
             try {
@@ -1311,6 +1408,8 @@ public class MusicService extends Service {
 
     private void notifyChange(String what, boolean fromUser) {
         if (what.equals(InternalIntents.TRACK_ENDING)) {
+            // TODO: Let the server know we're about to finish our song. Then, other users respond when they finish. When everyone is done, we do in fact go to the next one.
+
             //We're just about to change tracks, so 'current song' is the song that just finished
             Song finishedSong = currentSong;
             if (finishedSong != null) {
@@ -1457,6 +1556,24 @@ public class MusicService extends Service {
                 notifyChange(InternalIntents.META_CHANGED);
             }
         }
+
+        // In sync mode, broadcast queued songs.
+        if (syncedQueue) {
+            if (action == EnqueueAction.NEXT) {
+                ListIterator li = songs.listIterator(songs.size());
+                while (li.hasPrevious()) { // iterate songs in reverse
+                    Song s = (Song) li.previous();
+                    if (action == EnqueueAction.NEXT) {
+                        sendSyncMessage(Syncer.Command.QueueNext, new String[]{s.name, s.artistName, s.albumName});
+                    }
+                }
+            } else {
+                // iterate in normal order
+                for (Song s : songs) {
+                    sendSyncMessage(Syncer.Command.QueueAdd, new String[]{s.name, s.artistName, s.albumName});
+                }
+            }
+        }
     }
 
 
@@ -1500,6 +1617,26 @@ public class MusicService extends Service {
                 notifyChange(InternalIntents.META_CHANGED);
             }
         }
+
+        if (syncedQueue && !songs.isEmpty()) {
+            // TODO: Send over the whole list in one message, with the index to play.
+            Song f = songs.get(position);
+            sendSyncMessage(Syncer.Command.QueueNow, new String[]{"0", f.name, f.artistName, f.albumName});
+
+            String msg = "";
+            for (int i = position + 1; i < songs.size(); i++) {
+                Song s = songs.get(i);
+                msg += Syncer.Command.QueueAdd.toString() + "`"
+                    + s.name + "`"
+                    + s.artistName + "`"
+                    + s.albumName;
+                if (i < songs.size() - 1) {
+                    msg += "``";
+                }
+            }
+            // TODO: Replace with more declarative function call.
+            sendSyncMessageText(msg);
+        }
     }
 
     /**
@@ -1509,6 +1646,11 @@ public class MusicService extends Service {
      * @param to
      */
     public void moveQueueItem(int from, int to) {
+        // Can't shift previous queue items in sync mode since other users may or may not have the history.
+        if (syncedQueue && ircBot != null && ircBot.isConnected() && (from < playPos || to < playPos)) {
+            return;
+        }
+
         synchronized (this) {
 
             if (from >= getCurrentPlaylist().size()) {
@@ -1535,6 +1677,9 @@ public class MusicService extends Service {
             }
             notifyChange(InternalIntents.QUEUE_CHANGED, true);
         }
+
+        // Send queue shifts as relative to the current song.
+        sendSyncMessage(Syncer.Command.QueueMove, "" + (from - playPos) + "`" + (to - playPos));
     }
 
     public List<Song> getQueue() {
@@ -1852,6 +1997,8 @@ public class MusicService extends Service {
                 }
             }
         }
+
+        sendSyncMessage(Syncer.Command.Play);
     }
 
     private void updateMediaSession(final String what) {
@@ -2111,6 +2258,7 @@ public class MusicService extends Service {
     }
 
     private void stop(final boolean goToIdle) {
+//        sendSyncMessage("stop");
 
         switch (mPlaybackLocation) {
             case LOCAL: {
@@ -2159,7 +2307,6 @@ public class MusicService extends Service {
      */
     public void pause() {
         synchronized (this) {
-
             switch (mPlaybackLocation) {
                 case LOCAL: {
                     playerHandler.removeMessages(PlayerHandler.FADE_UP);
@@ -2190,6 +2337,8 @@ public class MusicService extends Service {
                 }
             }
         }
+
+        sendSyncMessage(Syncer.Command.Pause);
     }
 
     /**
@@ -2245,6 +2394,7 @@ public class MusicService extends Service {
 
     public void prev() {
         playerHandler.sendEmptyMessage(PlayerHandler.GO_TO_PREV);
+        sendSyncMessage(Syncer.Command.Previous);
     }
 
     /*
@@ -2309,6 +2459,7 @@ public class MusicService extends Service {
 
     public void next() {
         playerHandler.sendEmptyMessage(PlayerHandler.GO_TO_NEXT);
+        sendSyncMessage(Syncer.Command.Next);
     }
 
     /**
@@ -2399,6 +2550,8 @@ public class MusicService extends Service {
         setShuffleMode(ShuffleMode.OFF);
         stop(true);
         playPos = -1;
+
+        sendSyncMessage(Syncer.Command.QueueClear);
     }
 
     /**
@@ -2555,6 +2708,7 @@ public class MusicService extends Service {
             play();
             notifyChange(InternalIntents.META_CHANGED);
         }
+        sendSyncMessage(Syncer.Command.QueueSetPos, String.valueOf(pos));
     }
 
     public String getArtistName() {
@@ -2711,6 +2865,7 @@ public class MusicService extends Service {
                 notifyChange(InternalIntents.POSITION_CHANGED);
             }
         }
+        sendSyncMessage(Syncer.Command.Seek, String.valueOf(position));
     }
 
     /**

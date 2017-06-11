@@ -39,7 +39,7 @@ public class Song implements
 
     private static final String TAG = "Song";
 
-    public long id;
+    public long id = -1;
     public String name;
     public String artistName;
     public long artistId;
@@ -149,6 +149,36 @@ public class Song implements
         //Populate the artwork key & sort key properties if null.
         setSortKey();
         setArtworkKey();
+    }
+
+    private Song() {
+
+    }
+
+    public static Song placeholder(String name, String artist, String album, long duration, int year, int track) {
+        Song song = new Song();
+        song.id = -1;
+        song.name = name;
+        song.artistName = artist;
+        song.albumArtistName = artist;
+        song.albumName = album;
+        song.duration = duration;
+        song.year = year;
+        song.track = track;
+
+        if (track >= 1000) {
+            song.discNumber = track / 1000;
+            song.track = track % 1000;
+        }
+
+        song.dateAdded = 0;
+        song.path = "";
+        song.isPodcast = false;
+        song.bookMark = 0;
+
+        song.setSortKey();
+        song.setArtworkKey();
+        return song;
     }
 
     public Genre getGenre() {

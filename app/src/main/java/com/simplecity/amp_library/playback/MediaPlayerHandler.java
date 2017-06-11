@@ -6,6 +6,11 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import org.pircbotx.Configuration;
+import org.pircbotx.PircBotX;
+import org.pircbotx.exception.IrcException;
+
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 
 final class MediaPlayerHandler extends Handler {
@@ -135,6 +140,30 @@ final class MediaPlayerHandler extends Handler {
 
             case MusicService.PlayerHandler.SHUFFLE_ALL:
                 service.playAutoShuffleList();
+                break;
+            case MusicService.PlayerHandler.SYNC_START:
+                Configuration ircConfig = new Configuration.Builder()
+                    .setName(service.getSyncUser()) //Set the nick of the bot.
+                    .setLogin(service.getSyncUser())
+                    .setAutoNickChange(true)
+                    .addServer("irc.freenode.net") //Join the freenode network
+                    .addAutoJoinChannel(service.getSyncChannel()) //Join the official #pircbotx channel
+                    .addListener(new Syncer(service)) //Add our listener that will be called on Events
+                    .setDccAcceptTimeout(5000) // only keep file offers alive for 5 seconds.
+                    .buildConfiguration();
+
+                //Create our bot with the configuration
+                PircBotX bot = new PircBotX(ircConfig);
+                //Connect to the server
+                service.ircBot = bot;
+                try {
+                    bot.startBot();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (IrcException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("sfs got past starting a bot!");
                 break;
         }
     }

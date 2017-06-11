@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <com.simplecity.amp_library.ui.views.CustomPreferenceCategory
+        android:layout="@layout/preference_category"
+        android:title="Sync">
+        <Preference
+            android:key="pref_sync_channel"
+            android:layout="@layout/preference"
+            android:title="Channel"/>
+        <Preference
+            android:key="pref_sync_user"
+            android:layout="@layout/preference"
+            android:title="Username"/>
+        <Preference
+            android:key="pref_sync_connect"
+            android:layout="@layout/preference"
+            android:title="Connect"/>
+    </com.simplecity.amp_library.ui.views.CustomPreferenceCategory>
+</PreferenceScreen>

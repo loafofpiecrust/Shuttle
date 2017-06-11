@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <PreferenceScreen
+        android:icon="@drawable/ic_settings_blacklist"
+        android:key="pref_sync"
+        android:layout="@layout/preference_header"
+        android:title="@string/pref_string_title_sync" />
+    <PreferenceScreen
         android:icon="@drawable/ic_settings_display"
         android:key="pref_display"
         android:layout="@layout/preference_header"

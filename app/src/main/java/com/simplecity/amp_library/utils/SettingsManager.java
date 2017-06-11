@@ -422,4 +422,24 @@ public class SettingsManager {
     public boolean getShowChangelogOnLaunch() {
         return getBooleanValue(KEY_CHANGELOG_SHOW_ON_LAUNCH, true);
     }
+
+    // Sync
+
+
+    private static final String KEY_SYNC_CHANNEL = "pref_sync_channel";
+    public void setSyncChannel(String channel) {
+        setStringValue(KEY_SYNC_CHANNEL, channel);
+    }
+    public String getSyncChannel() {
+        return getStringValue(KEY_SYNC_CHANNEL);
+    }
+
+    private static final String KEY_SYNC_USER = "pref_sync_user";
+    public void setSyncUser(String username) {
+        setStringValue(KEY_SYNC_USER, username);
+    }
+    public String getSyncUser() {
+        long randomId = (long)(Math.random() * 99999999);
+        return getStringValue(KEY_SYNC_USER, "shuttleSync" + randomId);
+    }
 }

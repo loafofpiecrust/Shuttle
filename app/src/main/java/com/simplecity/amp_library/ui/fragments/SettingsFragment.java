@@ -43,6 +43,7 @@ import com.simplecity.amp_library.utils.AnalyticsManager;
 import com.simplecity.amp_library.utils.ColorPalette;
 import com.simplecity.amp_library.utils.DialogUtils;
 import com.simplecity.amp_library.utils.DrawableUtils;
+import com.simplecity.amp_library.utils.MusicServiceConnectionUtils;
 import com.simplecity.amp_library.utils.MusicUtils;
 import com.simplecity.amp_library.utils.ResourceUtils;
 import com.simplecity.amp_library.utils.SettingsManager;
@@ -202,6 +203,16 @@ public class SettingsFragment extends PreferenceFragment {
                     Intent intent = new Intent(getContext(), ArtworkDownloadService.class);
                     ShuttleApplication.getInstance().startService(intent);
                 });
+                return true;
+            });
+        }
+
+        final Preference syncConnect = findPreference("pref_sync_connect");
+        if (syncConnect != null) {
+            syncConnect.setOnPreferenceClickListener(preference -> {
+                if (MusicServiceConnectionUtils.sServiceBinder != null && MusicServiceConnectionUtils.sServiceBinder.getService() != null) {
+                    MusicServiceConnectionUtils.sServiceBinder.getService().enterSyncMode();
+                }
                 return true;
             });
         }
@@ -501,6 +512,8 @@ public class SettingsFragment extends PreferenceFragment {
             ((SettingsActivity) getActivity()).swapSettingsFragment(R.xml.settings_headset);
         } else if (preference.getKey().equals("pref_scrobbling")) {
             ((SettingsActivity) getActivity()).swapSettingsFragment(R.xml.settings_scrobbling);
+        } else if (preference.getKey().equals("pref_sync")) {
+            ((SettingsActivity) getActivity()).swapSettingsFragment(R.xml.settings_sync);
         }
 
         return super.onPreferenceTreeClick(preferenceScreen, preference);
@@ -539,6 +552,10 @@ public class SettingsFragment extends PreferenceFragment {
             Preference upgradePreference = findPreference("pref_upgrade");
             if (upgradePreference != null) {
                 upgradePreference.setIcon(DrawableUtils.getColoredAccentDrawable(getActivity(), getResources().getDrawable(R.drawable.ic_settings_purchase), false));
+            }
+            Preference syncPreference = findPreference("pref_sync");
+            if (syncPreference != null) {
+                syncPreference.setIcon(DrawableUtils.getColoredAccentDrawable(getActivity(), getResources().getDrawable(R.drawable.ic_settings_blacklist), false));
             }
         }
     }
