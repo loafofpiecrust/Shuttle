@@ -42,6 +42,8 @@ public class IRCTask extends AsyncTask<MusicService, Void, PircBotX> {
                     .setAutoReconnect(true)
                     .setAutoReconnectDelay(3000)
                     .setAutoReconnectAttempts(5)
+                    .setMaxLineLength(512)
+                    .setMessageDelay(100)
                     .buildConfiguration();
 
             //Create our bot with the configuration

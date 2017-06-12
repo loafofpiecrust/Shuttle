@@ -366,7 +366,7 @@ public class MusicService extends Service {
         }
     }
 
-    private void sendSyncMessage(Syncer.Command cmd, String[] args) {
+    private void sendSyncMessage(Syncer.Command cmd, String... args) {
         if (ircBot == null || !syncedQueue) {
             return;
         }
@@ -1562,20 +1562,28 @@ public class MusicService extends Service {
 
         // In sync mode, broadcast queued songs.
         if (syncedQueue) {
-            StringBuilder msg = new StringBuilder();
+//            StringBuilder msg = new StringBuilder();
             if (action == EnqueueAction.NEXT) {
-                msg.append(Syncer.Command.QueueNext.toString());
+                ListIterator li = songs.listIterator(songs.size());
+                while (li.hasPrevious()) {
+                    Song s = (Song)li.previous();
+                    sendSyncMessage(Syncer.Command.QueueNext, s.name, s.artistName, s.albumName);
+                }
+//                msg.append(Syncer.Command.QueueNext.toString());
             } else {
-                msg.append(Syncer.Command.QueueAdd.toString());
+//                msg.append(Syncer.Command.QueueAdd.toString());
+                for (Song s : songs) {
+                    sendSyncMessage(Syncer.Command.QueueAdd, s.name, s.artistName, s.albumName);
+                }
             }
-            for (Song s : songs) {
-                msg.append('`');
-                msg.append(s.name); msg.append('`');
-                msg.append(s.artistName); msg.append('`');
-                msg.append(s.albumName);
-            }
+//            for (Song s : songs) {
+//                msg.append('`');
+//                msg.append(s.name); msg.append('`');
+//                msg.append(s.artistName); msg.append('`');
+//                msg.append(s.albumName);
+//            }
 
-            sendSyncMessageText(msg.toString());
+//            sendSyncMessageText(msg.toString());
         }
     }
 
@@ -1621,21 +1629,16 @@ public class MusicService extends Service {
             }
         }
 
-        if (syncedQueue && songs != null && !songs.isEmpty()) {
+        if (syncedQueue && !songs.isEmpty()) {
             // TODO: Send over the whole list in one message, with the index to play.
             Song f = songs.get(position);
-            sendSyncMessage(Syncer.Command.QueueNow, new String[]{"0", f.name, f.artistName, f.albumName});
+            sendSyncMessage(Syncer.Command.QueueNow, "0", f.name, f.artistName, f.albumName);
 
             String msg = Syncer.Command.QueueAdd.toString();
             for (int i = position + 1; i < songs.size(); i++) {
                 Song s = songs.get(i);
-                msg += "`"
-                    + s.name + "`"
-                    + s.artistName + "`"
-                    + s.albumName;
+                sendSyncMessage(Syncer.Command.QueueAdd, s.name, s.artistName, s.albumName);
             }
-            // TODO: Replace with more declarative function call.
-            sendSyncMessageText(msg);
         }
     }
 

@@ -111,23 +111,28 @@ public class Syncer extends ListenerAdapter {
             msg.append(service.getPosition());
             event.getUser().send().message(msg.toString());
 
-            msg = new StringBuilder();
+//            msg = new StringBuilder();
 
-            if (service.getQueuePosition() >= q.size() - 1) {
-                msg.append("``?s`");
-                msg.append(Command.QueueAdd.toString());
+//            if (service.getQueuePosition() >= q.size() - 1) {
+//                msg.append("``?s`");
+//                msg.append(Command.QueueAdd.toString());
                 for (int i = service.getQueuePosition(); i < q.size(); i++) {
                     Song s = q.get(i);
-                    msg.append('`');
-                    msg.append(s.name);
-                    msg.append('`');
-                    msg.append(s.artistName);
-                    msg.append('`');
-                    msg.append(s.albumName);
+//                    msg.append('`');
+//                    msg.append(s.name);
+//                    msg.append('`');
+//                    msg.append(s.artistName);
+//                    msg.append('`');
+//                    msg.append(s.albumName);
+                    event.getUser().send().message("?s`" + Command.QueueAdd.toString()
+                            + "`" + s.name
+                            + "`" + s.artistName
+                            + "`" + s.albumName
+                    );
                 }
-            }
+//            }
 
-            event.getUser().send().message(msg.toString());
+//            event.getUser().send().message(msg.toString());
         }
     }
 
