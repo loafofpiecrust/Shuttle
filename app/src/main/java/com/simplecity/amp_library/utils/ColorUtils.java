@@ -133,7 +133,6 @@ public class ColorUtils {
     }
 
     public static int getColorDark(int colorPrimary) {
-
         if (colorPrimary == Color.BLACK) {
             return Color.BLACK;
         }

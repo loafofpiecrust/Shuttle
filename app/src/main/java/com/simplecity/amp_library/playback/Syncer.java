@@ -190,7 +190,9 @@ public class Syncer extends ListenerAdapter {
                             // check if we have the song already.
                             Song song = DataManager.getInstance().getSongsRelay()
                                     .map(ss -> ss.stream()
-                                            .filter(s -> s.name.equals(name) && s.artistName.equals(artist) && s.albumName.equals(album))
+                                            .filter(s -> s.name.equalsIgnoreCase(name)
+                                                    && s.artistName.equalsIgnoreCase(artist)
+                                                    && s.albumName.equalsIgnoreCase(album))
                                             .findFirst()
                                             .orElse(null)).toBlocking().first();
 

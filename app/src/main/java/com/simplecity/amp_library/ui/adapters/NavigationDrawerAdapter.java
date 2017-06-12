@@ -43,6 +43,8 @@ public class NavigationDrawerAdapter extends AnimatedExpandableListView.Animated
         DrawerGroupItem support = new DrawerGroupItem(DrawerGroupItem.Type.SUPPORT, R.string.pref_title_support, R.drawable.ic_settings_help);
         DrawerGroupItem divider = new DrawerGroupItem(DrawerGroupItem.Type.DIVIDER, -1, -1);
 
+        // TODO: Add button for toggling sync mode.
+
         mDrawerGroupItems.add(library);
         mDrawerGroupItems.add(folders);
         mDrawerGroupItems.add(playlists);

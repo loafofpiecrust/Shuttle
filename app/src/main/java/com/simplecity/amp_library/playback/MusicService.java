@@ -22,6 +22,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.sqlite.SQLiteException;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.media.AudioManager.OnAudioFocusChangeListener;
@@ -57,6 +58,7 @@ import com.bumptech.glide.request.animation.GlideAnimation;
 import com.bumptech.glide.request.target.SimpleTarget;
 import com.crashlytics.android.Crashlytics;
 import com.crashlytics.android.core.CrashlyticsCore;
+import com.github.florent37.glidepalette.GlidePalette;
 import com.google.android.gms.cast.ApplicationMetadata;
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaMetadata;
@@ -2112,25 +2114,33 @@ public class MusicService extends Service {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PendingIntent contentIntent = PendingIntent.getActivity(MusicService.this, 0, intent, 0);
 
-            Notification.Builder builder = new Notification.Builder(this);
+            GlidePalette.with(getSong().getArtworkKey()).intoCallBack(palette -> {
+                Notification.Builder builder = new Notification.Builder(this);
 
-            builder.setSmallIcon(R.drawable.ic_stat_notification)
-                    .setContentIntent(contentIntent)
-                    .setPriority(Notification.PRIORITY_MAX);
+                builder.setSmallIcon(R.drawable.ic_stat_notification)
+                        .setContentIntent(contentIntent)
+                        .setPriority(Notification.PRIORITY_MAX);
 
-            if (ShuttleUtils.hasJellyBeanMR1()) {
-                builder.setShowWhen(false);
-            }
+                if (palette != null) {
+                    // TODO: Use the avg color of the album cover.
+                    builder.setColor(palette.getDominantColor(Color.rgb(127, 255, 2)));
+                }
 
-            if (ShuttleUtils.hasLollipop()) {
-                builder.setVisibility(Notification.VISIBILITY_PUBLIC);
-            }
 
-            if (ShuttleUtils.hasNougat()) {
-                builder.setStyle(new Notification.DecoratedCustomViewStyle());
-            }
+                if (ShuttleUtils.hasJellyBeanMR1()) {
+                    builder.setShowWhen(false);
+                }
 
-            mNotification = builder.build();
+                if (ShuttleUtils.hasLollipop()) {
+                    builder.setVisibility(Notification.VISIBILITY_PUBLIC);
+                }
+
+                if (ShuttleUtils.hasNougat()) {
+                    builder.setStyle(new Notification.DecoratedCustomViewStyle());
+                }
+
+                mNotification = builder.build();
+            });
         }
 
         boolean invertIconsAndText = SettingsManager.getInstance().invertNotificationIcons() && ShuttleUtils.hasLollipop();
@@ -2460,6 +2470,7 @@ public class MusicService extends Service {
     public void next() {
         playerHandler.sendEmptyMessage(PlayerHandler.GO_TO_NEXT);
         sendSyncMessage(Syncer.Command.Next);
+
     }
 
     /**
