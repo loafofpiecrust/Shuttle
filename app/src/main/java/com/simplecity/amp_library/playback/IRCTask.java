@@ -24,6 +24,7 @@ public class IRCTask extends AsyncTask<MusicService, Void, PircBotX> {
 
         // If the bot is already configured, just switch channels.
         if (service.ircBot != null) {
+            service.ircBot.send().changeNick(service.getSyncUser());
             service.ircBot.getUserBot().getChannels().forEach(c -> c.send().part());
             service.ircBot.send().joinChannel(service.getSyncChannel());
             return service.ircBot;

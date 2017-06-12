@@ -44,6 +44,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.support.v7.graphics.Palette;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.RemoteViews;
@@ -349,7 +350,7 @@ public class MusicService extends Service {
     }
 
     public String getSyncChannel() {
-        return SettingsManager.getInstance().getSyncChannel();
+        return "#" + SettingsManager.getInstance().getSyncChannel();
     }
 
     private class SyncMessageTask extends AsyncTask<Object, Void, Void> {
@@ -380,7 +381,7 @@ public class MusicService extends Service {
     }
 
     private void sendSyncMessage(Syncer.Command cmd, String msg) {
-        sendSyncMessageText(cmd.toString() + msg);
+        sendSyncMessageText(cmd.toString() + "`" + msg);
     }
 
     private void sendSyncMessage(Syncer.Command cmd) {
@@ -402,7 +403,7 @@ public class MusicService extends Service {
             return;
         }
 
-        if (getSyncUser() != null) {
+        if (getSyncUser() != null && getSyncChannel() != null) {
             new IRCTask().execute(this);
             syncedQueue = true;
         }
@@ -1561,20 +1562,20 @@ public class MusicService extends Service {
 
         // In sync mode, broadcast queued songs.
         if (syncedQueue) {
+            StringBuilder msg = new StringBuilder();
             if (action == EnqueueAction.NEXT) {
-                ListIterator li = songs.listIterator(songs.size());
-                while (li.hasPrevious()) { // iterate songs in reverse
-                    Song s = (Song) li.previous();
-                    if (action == EnqueueAction.NEXT) {
-                        sendSyncMessage(Syncer.Command.QueueNext, new String[]{s.name, s.artistName, s.albumName});
-                    }
-                }
+                msg.append(Syncer.Command.QueueNext.toString());
             } else {
-                // iterate in normal order
-                for (Song s : songs) {
-                    sendSyncMessage(Syncer.Command.QueueAdd, new String[]{s.name, s.artistName, s.albumName});
-                }
+                msg.append(Syncer.Command.QueueAdd.toString());
             }
+            for (Song s : songs) {
+                msg.append('`');
+                msg.append(s.name); msg.append('`');
+                msg.append(s.artistName); msg.append('`');
+                msg.append(s.albumName);
+            }
+
+            sendSyncMessageText(msg.toString());
         }
     }
 
@@ -1620,21 +1621,18 @@ public class MusicService extends Service {
             }
         }
 
-        if (syncedQueue && !songs.isEmpty()) {
+        if (syncedQueue && songs != null && !songs.isEmpty()) {
             // TODO: Send over the whole list in one message, with the index to play.
             Song f = songs.get(position);
             sendSyncMessage(Syncer.Command.QueueNow, new String[]{"0", f.name, f.artistName, f.albumName});
 
-            String msg = "";
+            String msg = Syncer.Command.QueueAdd.toString();
             for (int i = position + 1; i < songs.size(); i++) {
                 Song s = songs.get(i);
-                msg += Syncer.Command.QueueAdd.toString() + "`"
+                msg += "`"
                     + s.name + "`"
                     + s.artistName + "`"
                     + s.albumName;
-                if (i < songs.size() - 1) {
-                    msg += "``";
-                }
             }
             // TODO: Replace with more declarative function call.
             sendSyncMessageText(msg);
@@ -1906,6 +1904,8 @@ public class MusicService extends Service {
             }
         }
 
+        sendSyncMessage(Syncer.Command.Play);
+
         switch (mPlaybackLocation) {
             case LOCAL: {
                 if (player != null && player.isInitialized()) {
@@ -2000,7 +2000,6 @@ public class MusicService extends Service {
             }
         }
 
-        sendSyncMessage(Syncer.Command.Play);
     }
 
     private void updateMediaSession(final String what) {
@@ -2114,33 +2113,48 @@ public class MusicService extends Service {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PendingIntent contentIntent = PendingIntent.getActivity(MusicService.this, 0, intent, 0);
 
-            GlidePalette.with(getSong().getArtworkKey()).intoCallBack(palette -> {
-                Notification.Builder builder = new Notification.Builder(this);
+            mNotification = null;
+            Notification.Builder builder = new Notification.Builder(this);
 
-                builder.setSmallIcon(R.drawable.ic_stat_notification)
-                        .setContentIntent(contentIntent)
-                        .setPriority(Notification.PRIORITY_MAX);
+            builder.setSmallIcon(R.drawable.ic_stat_notification)
+                    .setContentIntent(contentIntent)
+                    .setPriority(Notification.PRIORITY_MAX);
 
-                if (palette != null) {
-                    // TODO: Use the avg color of the album cover.
-                    builder.setColor(palette.getDominantColor(Color.rgb(127, 255, 2)));
-                }
+            // TODO: Get this to work.
+            Glide.with(this)
+                    .load(getAlbum().getArtworkKey())
+                    .asBitmap()
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .override(600, 600)
+                    .listener(GlidePalette.with(getAlbum().getArtworkKey())
+                        .use(GlidePalette.Profile.VIBRANT)
+                        .intoCallBack(palette -> {
+                            if (palette != null) {
+                                // TODO: Use the avg color of the album cover.
+                                builder.setColor(palette.getDominantColor(Color.rgb(127, 255, 2)));
+                            }
+                        })
+                    ).preload();
 
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
-                if (ShuttleUtils.hasJellyBeanMR1()) {
-                    builder.setShowWhen(false);
-                }
+            if (ShuttleUtils.hasJellyBeanMR1()) {
+                builder.setShowWhen(false);
+            }
 
-                if (ShuttleUtils.hasLollipop()) {
-                    builder.setVisibility(Notification.VISIBILITY_PUBLIC);
-                }
+            if (ShuttleUtils.hasLollipop()) {
+                builder.setVisibility(Notification.VISIBILITY_PUBLIC);
+            }
 
-                if (ShuttleUtils.hasNougat()) {
-                    builder.setStyle(new Notification.DecoratedCustomViewStyle());
-                }
+            if (ShuttleUtils.hasNougat()) {
+                builder.setStyle(new Notification.DecoratedCustomViewStyle());
+            }
 
-                mNotification = builder.build();
-            });
+            mNotification = builder.build();
         }
 
         boolean invertIconsAndText = SettingsManager.getInstance().invertNotificationIcons() && ShuttleUtils.hasLollipop();
@@ -2316,6 +2330,7 @@ public class MusicService extends Service {
      * Pauses playback (call play() to resume)
      */
     public void pause() {
+        sendSyncMessage(Syncer.Command.Pause);
         synchronized (this) {
             switch (mPlaybackLocation) {
                 case LOCAL: {
@@ -2347,8 +2362,6 @@ public class MusicService extends Service {
                 }
             }
         }
-
-        sendSyncMessage(Syncer.Command.Pause);
     }
 
     /**
@@ -2470,7 +2483,6 @@ public class MusicService extends Service {
     public void next() {
         playerHandler.sendEmptyMessage(PlayerHandler.GO_TO_NEXT);
         sendSyncMessage(Syncer.Command.Next);
-
     }
 
     /**

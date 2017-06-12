@@ -4,11 +4,12 @@
     <com.simplecity.amp_library.ui.views.CustomPreferenceCategory
         android:layout="@layout/preference_category"
         android:title="Sync">
-        <Preference
+        <EditTextPreference
             android:key="pref_sync_channel"
             android:layout="@layout/preference"
-            android:title="Channel"/>
-        <Preference
+            android:title="Channel"
+            android:defaultValue="@string/sync_channel_default"/>
+        <EditTextPreference
             android:key="pref_sync_user"
             android:layout="@layout/preference"
             android:title="Username"/>

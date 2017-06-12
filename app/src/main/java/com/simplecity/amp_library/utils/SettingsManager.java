@@ -431,7 +431,7 @@ public class SettingsManager {
         setStringValue(KEY_SYNC_CHANNEL, channel);
     }
     public String getSyncChannel() {
-        return getStringValue(KEY_SYNC_CHANNEL);
+        return getStringValue(KEY_SYNC_CHANNEL, "shuttle-sync-party");
     }
 
     private static final String KEY_SYNC_USER = "pref_sync_user";

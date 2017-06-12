@@ -80,7 +80,7 @@ public class Syncer extends ListenerAdapter {
     public void onJoin(JoinEvent event) {
         User user = event.getUser();
         // TODO: Send this text as a notification.
-        if (user.getIdent().equals(service.getSyncUser())) {
+        if (user.getNick().equals(service.getSyncUser())) {
             System.out.println("You joined the listening channel!");
             service.toggleSyncBroadcast(false);
             service.clearQueue();
@@ -109,6 +109,9 @@ public class Syncer extends ListenerAdapter {
 
             msg.append("``?s`seek`");
             msg.append(service.getPosition());
+            event.getUser().send().message(msg.toString());
+
+            msg = new StringBuilder();
 
             if (service.getQueuePosition() >= q.size() - 1) {
                 msg.append("``?s`");
@@ -124,7 +127,7 @@ public class Syncer extends ListenerAdapter {
                 }
             }
 
-            event.respond(msg.toString());
+            event.getUser().send().message(msg.toString());
         }
     }
 
@@ -157,15 +160,16 @@ public class Syncer extends ListenerAdapter {
                         // TODO: Implement removal with Song info rather than an index.
                         break;
                     case QueueSetPos: {
-                        int pos = Integer.parseInt(msg[1]);
+                        int pos = Integer.parseInt(msg[2]);
                         service.setQueuePosition(pos);
                         break;
                     }
                     case QueueMove:
-                        int from = Integer.parseInt(msg[1]);
-                        int to = Integer.parseInt(msg[2]);
+                        int from = Integer.parseInt(msg[2]);
+                        int to = Integer.parseInt(msg[3]);
                         int curr = service.getQueuePosition();
                         service.moveQueueItem(curr + from, curr + to);
+                        service.notifyChange(MusicService.InternalIntents.QUEUE_CHANGED);
                         break;
                     case QueueClear:
                         service.clearQueue(); break;
@@ -182,7 +186,7 @@ public class Syncer extends ListenerAdapter {
                         int songIdx = 0;
 
                         // Able to send a whole list of songs.
-                        for (int i = 3; i < msg.length; i += 3) {
+                        for (int i = 2; i < msg.length; i += 3) {
                             String name = msg[i];
                             String artist = msg[i + 1];
                             String album = msg[i + 2];
