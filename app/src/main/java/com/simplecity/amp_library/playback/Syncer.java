@@ -1,7 +1,9 @@
 package com.simplecity.amp_library.playback;
 
 import android.os.Environment;
+import android.provider.MediaStore;
 
+import com.simplecity.amp_library.glide.fetcher.MediaStoreFetcher;
 import com.simplecity.amp_library.model.Song;
 import com.simplecity.amp_library.utils.DataManager;
 import com.simplecity.amp_library.utils.FileHelper;
@@ -40,7 +42,8 @@ public class Syncer extends ListenerAdapter {
         QueueAdd,
         QueueNow,
         QueueMove,
-        QueueClear;
+        QueueClear,
+        QueueRequest;
 
         public static Command parse(String s) {
             return Command.values()[Integer.parseInt(s)];
@@ -107,16 +110,20 @@ public class Syncer extends ListenerAdapter {
             msg.append('`');
             msg.append(curr.albumName);
 
-            msg.append("``?s`seek`");
+            msg.append("``?s`");
+            msg.append(Command.Seek.toString()); msg.append('`');
             msg.append(service.getPosition());
+
             event.getUser().send().message(msg.toString());
+
+            event.getUser().send().message("?s`" + Command.Play);
 
 //            msg = new StringBuilder();
 
 //            if (service.getQueuePosition() >= q.size() - 1) {
 //                msg.append("``?s`");
 //                msg.append(Command.QueueAdd.toString());
-                for (int i = service.getQueuePosition(); i < q.size(); i++) {
+                for (int i = service.getQueuePosition() + 1; i < q.size(); i++) {
                     Song s = q.get(i);
 //                    msg.append('`');
 //                    msg.append(s.name);
@@ -177,7 +184,7 @@ public class Syncer extends ListenerAdapter {
                         service.notifyChange(MusicService.InternalIntents.QUEUE_CHANGED);
                         break;
                     case QueueClear:
-                        service.clearQueue(); break;
+                        service.clearRestOfQueue(); break;
                     case Seek:
                         Long time = Long.parseLong(msg[2]); // time to seek to
                         service.seekTo(time);
@@ -253,7 +260,9 @@ public class Syncer extends ListenerAdapter {
     }
 
     private File downloadNow(IncomingFileTransferEvent event) {
+        // Download to cache dir
         File file = new File(
+//            Environment.getDownloadCacheDirectory(),
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
             event.getSafeFilename()
         );
@@ -263,6 +272,11 @@ public class Syncer extends ListenerAdapter {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        // TODO: Get MediaStore to recognize and add this file to the music query.
+        file.setReadable(true);
+        file.setWritable(true);
+
         return file;
     }
 
@@ -280,21 +294,31 @@ public class Syncer extends ListenerAdapter {
         } else if (this.lastCommand == Command.QueueNext || this.lastCommand == Command.QueueAdd) {
             // TODO: Download the file passively (?)
             File file = this.downloadNow(event);
+
             try {
-                Thread.sleep(300); // Wait 300ms for file to load into library.
+                wait(1000); // Wait for file to load into library.
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            FileHelper.getSong(file).toList().forEach(songs -> {
-                switch (this.lastCommand) {
-                    case QueueNext:
-                        service.enqueue(songs, MusicService.EnqueueAction.NEXT);
-                        break;
-                    case QueueAdd:
-                        service.enqueue(songs, MusicService.EnqueueAction.LAST);
-                        break;
-                }
+
+            service.getSongFile(file.getPath(), song -> {
+                List<Song> songs = new ArrayList<>();
+                songs.add(song);
+                service.enqueue(songs, MusicService.EnqueueAction.NEXT);
             });
+//            FileHelper.getSong(file).toList().forEach(songs -> {
+//                switch (this.lastCommand) {
+//                    case QueueNext:
+//                        service.enqueue(songs, MusicService.EnqueueAction.NEXT);
+//                        break;
+//                    case QueueAdd:
+//                        service.enqueue(songs, MusicService.EnqueueAction.LAST);
+//                        break;
+//                }
+//            });
+//            service.openFile(file.getPath(), () -> {
+//                service.play();
+//            });
         } else {
             // No way to decline the file transfer.
             // Just let it time out.

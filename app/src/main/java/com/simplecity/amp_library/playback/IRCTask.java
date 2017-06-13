@@ -1,6 +1,11 @@
 package com.simplecity.amp_library.playback;
 
+import android.content.Context;
 import android.os.AsyncTask;
+import android.provider.Settings;
+import android.telephony.TelephonyManager;
+
+import com.simplecity.amp_library.ShuttleApplication;
 
 import org.pircbotx.Configuration;
 import org.pircbotx.PircBotX;
@@ -29,13 +34,17 @@ public class IRCTask extends AsyncTask<MusicService, Void, PircBotX> {
             service.ircBot.send().joinChannel(service.getSyncChannel());
             return service.ircBot;
         } else {
+            String deviceId = Settings.Secure.getString(
+                    ShuttleApplication.getInstance().getContentResolver(),
+                    Settings.Secure.ANDROID_ID);
+
             // NEW: Connect to the IRC channel and listen for messages.
             //Configure what we want our bot to do
             Configuration ircConfig = new Configuration.Builder()
-                    .setName(service.getSyncUser()) //Set the nick of the bot.
-                    .setLogin(service.getSyncUser())
+                    .setName(service.getSyncUser()) // Nickname (unique on server)
+                    .setLogin(deviceId != null ? deviceId : service.getSyncUser()) // Displayed device name, somewhat vestigial
                     .setAutoNickChange(true)
-                    .addServer("irc.freenode.net") //Join the freenode network
+                    .addServer("irc.inet.tele.dk") // Connect to an IRC server
                     .addAutoJoinChannel(service.getSyncChannel()) //Join the official #pircbotx channel
                     .addListener(new Syncer(service)) //Add our listener that will be called on Events
                     .setDccAcceptTimeout(5000) // only keep file offers alive for 5 seconds.

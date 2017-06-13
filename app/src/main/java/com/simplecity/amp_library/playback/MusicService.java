@@ -1632,7 +1632,7 @@ public class MusicService extends Service {
         if (syncedQueue && !songs.isEmpty()) {
             // TODO: Send over the whole list in one message, with the index to play.
             Song f = songs.get(position);
-            sendSyncMessage(Syncer.Command.QueueNow, "0", f.name, f.artistName, f.albumName);
+            sendSyncMessage(Syncer.Command.QueueNow, f.name, f.artistName, f.albumName);
 
             String msg = Syncer.Command.QueueAdd.toString();
             for (int i = position + 1; i < songs.size(); i++) {
@@ -1678,11 +1678,14 @@ public class MusicService extends Service {
                     playPos++;
                 }
             }
+
             notifyChange(InternalIntents.QUEUE_CHANGED, true);
         }
 
         // Send queue shifts as relative to the current song.
-        sendSyncMessage(Syncer.Command.QueueMove, "" + (from - playPos) + "`" + (to - playPos));
+        sendSyncMessage(Syncer.Command.QueueMove,
+                String.valueOf(from - playPos),
+                String.valueOf(to - playPos));
     }
 
     public List<Song> getQueue() {
@@ -1833,6 +1836,13 @@ public class MusicService extends Service {
      * @param path The path of the file to open
      */
     public void openFile(String path, @Nullable Action0 completion) {
+        getSongFile(path, song -> {
+            currentSong = song;
+            open(currentSong);
+        });
+    }
+
+    public void getSongFile(String path, @Nullable Action1<Song> completion) {
         synchronized (this) {
 
             if (path == null) {
@@ -1866,10 +1876,8 @@ public class MusicService extends Service {
                             .collect(Collectors.toList()))
                     .subscribe(songs -> {
                         if (!songs.isEmpty()) {
-                            currentSong = songs.get(0);
-                            open(currentSong);
                             if (completion != null) {
-                                completion.call();
+                                completion.call(songs.get(0));
                             }
                         }
                     });
@@ -2576,6 +2584,23 @@ public class MusicService extends Service {
         setShuffleMode(ShuffleMode.OFF);
         stop(true);
         playPos = -1;
+
+        sendSyncMessage(Syncer.Command.QueueClear);
+    }
+
+    public void clearRestOfQueue() {
+        Song curr = getSong();
+        // Empty the queue...
+        playlist.clear();
+        shuffleList.clear();
+        // ...but, retain the currently playing song
+        if (curr != null) {
+            playlist.add(curr);
+            shuffleList.add(curr);
+        }
+        setShuffleMode(ShuffleMode.OFF);
+        // Don't stop the song.
+        // Leave the seek position alone.
 
         sendSyncMessage(Syncer.Command.QueueClear);
     }

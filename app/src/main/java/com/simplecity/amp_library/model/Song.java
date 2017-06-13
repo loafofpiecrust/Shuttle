@@ -96,6 +96,7 @@ public class Song implements
     }
 
     public static Query getQuery() {
+
         return new Query.Builder()
                 .uri(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI)
                 .projection(Song.getProjection())

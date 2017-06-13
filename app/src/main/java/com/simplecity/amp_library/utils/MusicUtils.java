@@ -491,7 +491,9 @@ public class MusicUtils {
     }
 
     public static void clearQueue() {
-        MusicServiceConnectionUtils.sServiceBinder.getService().clearQueue();
+        // NOTE: Changed to just clear the rest of the queue, which makes more sense to me.
+//        MusicServiceConnectionUtils.sServiceBinder.getService().clearQueue();
+        MusicServiceConnectionUtils.sServiceBinder.getService().clearRestOfQueue();
     }
 
     public static void setTimer(int sleepNumber) {
